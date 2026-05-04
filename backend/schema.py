@@ -28,3 +28,23 @@ class Task(BaseModel):
 
 class TaskList(BaseModel):
     tasks: List[Task]
+
+class UserStory(BaseModel):
+    title: str = Field(description="Tiêu đề ngắn gọn của User Story") 
+    role: str = Field(description="Vai trò người dùng (As a...)")
+    action: str = Field(description="Hành động mong muốn (I want to...)")
+    benefit: str = Field(description="Lợi ích mang lại (So that...)")
+    acceptance_criteria: List[str] = Field(description="Danh sách các tiêu chí nghiệm thu")
+
+# ─── REQUEST SCHEMAS ──────────────────────────────────────────
+class CreateProjectRequest(BaseModel):
+    name: str
+
+class ChatRequest(BaseModel):
+    project_id: int
+    user_input: str
+    history: str = ""
+
+class ConfirmStoryRequest(BaseModel):
+    project_id: int
+    user_story: dict

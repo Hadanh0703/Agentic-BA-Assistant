@@ -5,12 +5,10 @@ __pycache__/
 venv/
 .env
 
-# Database
-*.sqlite3
+# Database & Storage
 *.db
 db_storage/
+sql_app.db
 
-# OS & IDE
-.vscode/
+# OS
 .DS_Store
-tmp/

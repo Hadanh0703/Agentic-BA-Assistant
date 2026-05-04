@@ -20,7 +20,7 @@ class Message(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
-    role = Column(String(50), nullable=False)       
+    role = Column(String(50), nullable=False) 
     content = Column(Text, nullable=False)
     agent_name = Column(String(100), nullable=True) 
     timestamp = Column(DateTime, default=datetime.utcnow)
@@ -32,9 +32,11 @@ class Artifact(Base):
     __tablename__ = "artifacts"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
-    type = Column(String(50), nullable=False)  # "user_story" | "task_list" | "risk_report"
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)  
+    type = Column(String(50), nullable=False)  
+    parent_id = Column(Integer, ForeignKey("artifacts.id"), nullable=True)
+    version = Column(Integer, default=1) 
     data = Column(JSON, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-
     project = relationship("Project", back_populates="artifacts")
+    children = relationship("Artifact", backref ="parent", remote_side=[id])
