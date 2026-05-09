@@ -1,4 +1,5 @@
 import os
+import shutil
 from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -18,10 +19,19 @@ def get_vector_db(project_id: int):
 
 def ingest_rag_file(file_path: str, project_id: int):
     if not os.path.exists(file_path):
+        print(f"Không tìm thấy file tại: {file_path}")
         return
 
+    # --- DỌN DẸP DỮ LIỆU CŨ ---
     persist_dir = os.path.join("./db_storage", f"project_{project_id}")
+    if os.path.exists(persist_dir):
+        try:
+            shutil.rmtree(persist_dir)
+            print(f"Đã dọn dẹp tri thức cũ của Project {project_id} để cập nhật bản mới.")
+        except Exception as e:
+            print(f"Cảnh báo: Không thể xóa thư mục cũ (có thể file đang bị khóa): {e}")
 
+    # 1. Load tài liệu (Hỗ trợ PDF và Text)
     try:
         if file_path.endswith('.pdf'):
             loader = PyPDFLoader(file_path)
@@ -29,35 +39,34 @@ def ingest_rag_file(file_path: str, project_id: int):
             loader = TextLoader(file_path, encoding='utf-8')
         documents = loader.load()
     except Exception as e:
-        print(f"Lỗi khi đọc file: {e}")
+        print(f" Lỗi khi đọc file: {e}")
         return
 
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=100)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
     chunks = text_splitter.split_documents(documents)
 
     try:
-        vector_db = get_vector_db(project_id)
-        vector_db.add_documents(chunks)
-        print(f"Project {project_id}: Đã nạp thêm tri thức từ {os.path.basename(file_path)}")
+        vector_db = Chroma.from_documents(
+            documents=chunks,
+            embedding=embeddings_model,
+            persist_directory=persist_dir
+        )
+        print(f" Project {project_id}: Đã cập nhật tri thức mới thành công!")
     except Exception as e:
-        print(f"Lỗi khi cập nhật Vector DB: {e}")
-
-def delete_rag_file(file_name: str, project_id: int):
-    """Xóa các đoạn văn bản thuộc về file cụ thể trong Vector DB"""
-    try:
-        vector_db = get_vector_db(project_id)
-        vector_db.delete(where={"source": file_name})
-        print(f"Đã xóa tri thức của file {file_name} trong Project {project_id}")
-    except Exception as e:
-        print(f"Lỗi khi xóa tri thức file: {e}")
+        print(f" Lỗi khi khởi tạo Vector DB: {e}")
 
 def query_rag(query: str, project_id: int):
     try:
         persist_dir = os.path.join("./db_storage", f"project_{project_id}")
+        
         if not os.path.exists(persist_dir):
             return ""
+
         vector_db = get_vector_db(project_id)
-        results = vector_db.similarity_search(query, k=5)
+        
+        # Tìm kiếm 3 đoạn văn bản có độ tương đồng cao nhất
+        results = vector_db.similarity_search(query, k=3)
+        
         context = "\n\n".join([doc.page_content for doc in results])
         return context
     except Exception as e:

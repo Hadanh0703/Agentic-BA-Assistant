@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Database & Storage
+*.db
+db_storage/
+sql_app.db
+
+# OS
+.DS_Store

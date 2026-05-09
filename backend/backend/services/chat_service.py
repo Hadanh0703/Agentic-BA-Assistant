@@ -22,13 +22,12 @@ async def handle_chat(project_id: int, user_input: str, history: str, db, emit):
         
     elif result["status"] == "awaiting_confirmation":
         story_data = result["user_story"].model_dump() if hasattr(result["user_story"], "model_dump") else result["user_story"]
-        
         save_artifact(db, project_id, "user_story", story_data)     
         save_message(
             db, 
             project_id, 
             "agent", 
-            "Tôi đã soạn xong User Story. Vui lòng kiểm tra, chỉnh sửa (nếu cần) và xác nhận trên bảng điều khiển!", 
+            "Tôi đã soạn xong User Story. Vui lòng kiểm tra và xác nhận trên bảng điều khiển!", 
             "Standardizer"
         )
 
@@ -42,26 +41,4 @@ async def handle_confirm(project_id: int, user_story: dict, db, emit):
         emit=emit,
         confirmed_story=user_story
     )
-    
-    if result.get("status") == "success":
-        tasks = result.get("tasks", [])
-        risk_report = result.get("risk_report")
-
-        combined_data = {
-            "story_details": user_story.model_dump() if hasattr(user_story, 'model_dump') else user_story,
-            "tasks": [task.model_dump() if hasattr(task, 'model_dump') else task for task in tasks],
-            "risk_report": risk_report.model_dump() if hasattr(risk_report, 'model_dump') else risk_report
-        }
-        
-        save_artifact(db, project_id, "task_list", combined_data)  
-        story_title = combined_data["story_details"].get('title', 'Mới')
-        
-        save_message(
-            db, 
-            project_id, 
-            "agent", 
-            f"Đã hoàn thành phân rã Task cho Story: {story_title}. Bạn có thể xem định dạng User Story chuẩn và danh sách Task chi tiết trong Workspace.", 
-            "Architect"
-        )
-
     return result

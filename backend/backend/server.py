@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Depends, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Depends
 from sqlalchemy.orm import Session
 from models import Base
 from services.websocket_manager import manager
@@ -18,8 +18,8 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="AI-BA Assistant API", lifespan=lifespan)
-
 # ─── MIDDLEWARE ──────────────────────────────────────────────────────
+
 setup_middlewares(app)
 
 # ─── PROJECT ──────────────────────────────────────────────────────
@@ -42,11 +42,6 @@ def project_messages(project_id: int, db: Session = Depends(get_db)):
     svc.get_project_or_404(project_id, db) 
     return svc.get_messages(db, project_id) 
 
-@app.get("/projects/{project_id}/files")
-def list_project_files(project_id: int, db: Session = Depends(get_db)):
-    svc.get_project_or_404(project_id, db)
-    return svc.get_project_files(db, project_id)
-
 @app.get("/projects/{project_id}/artifacts")
 def project_artifacts(project_id: int, db: Session = Depends(get_db)):
     svc.get_project_or_404(project_id, db) 
@@ -55,28 +50,7 @@ def project_artifacts(project_id: int, db: Session = Depends(get_db)):
 @app.post("/ingest/{project_id}")
 async def ingest_pdf(project_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
     svc.get_project_or_404(project_id, db)    
-    message = await svc.handle_ingest_logic(project_id, file, ingest_rag_file, db)  
-    return {"message": message}
-
-@app.put("/artifacts/{artifact_id}")
-async def update_artifact(artifact_id: int, req_data: dict, db: Session = Depends(get_db)):
-    updated_artifact = svc.update_artifact_data(db, artifact_id, req_data)
-    return updated_artifact
-
-@app.delete("/projects/{project_id}/artifacts/{artifact_id}")
-async def delete_artifact(project_id: int, artifact_id: int, db: Session = Depends(get_db)):
-    svc.get_project_or_404(project_id, db)
-    success = svc.delete_artifact_logic(db, project_id, artifact_id)
-    
-    if not success:
-        raise HTTPException(status_code=404, detail="Không tìm thấy bảng task này")
-        
-    return {"status": "success", "message": "Đã xóa bảng task thành công"}
-
-@app.delete("/projects/{project_id}/files/{file_name}")
-async def delete_knowledge_file(project_id: int, file_name: str, db: Session = Depends(get_db)):
-    svc.get_project_or_404(project_id, db)
-    message = await svc.delete_file_logic(project_id, file_name, db)
+    message = await svc.handle_ingest_logic(project_id, file, ingest_rag_file)  
     return {"message": message}
 
 
@@ -110,4 +84,3 @@ async def websocket_endpoint(websocket: WebSocket, project_id: str):
             await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(project_id)
-

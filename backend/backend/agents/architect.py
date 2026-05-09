@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
-from schema import TaskListData as TaskList
+from schema import TaskList
 from ingest_data import get_vector_db
 
 load_dotenv()
@@ -13,9 +13,7 @@ async def call_architect_async(user_story_obj, project_id: int, feedback: str = 
         temperature=0.1, 
         groq_api_key=os.getenv("GROQ_API_KEY")
     )
-    
     structured_llm = llm.with_structured_output(TaskList)
-    
     try:
         db = get_vector_db(project_id)
         query = f"{user_story_obj.action} {user_story_obj.benefit}"
@@ -31,27 +29,20 @@ Nhiệm vụ: Phân rã User Story thành các Technical Tasks chi tiết cho Te
 ## KIẾN THỨC TỪ TÀI LIỆU DỰ ÁN (RAG):
 {rag_context}
 
-## YÊU CẦU ĐẦU RA (JSON):
-Bạn PHẢI trả về đúng cấu trúc TaskListData:
-1. story_details: Hãy chép lại nguyên văn đối tượng User Story mà người dùng cung cấp (bao gồm role, action, benefit, acceptance_criteria).
-2. tasks: Danh sách các task kỹ thuật (FE, BE, DB).
-3. risk_report: Tự đánh giá các điểm yếu kỹ thuật hoặc rủi ro vận hành của Story này.
-
-## QUY TẮC PHÂN RÃ TASK:
+## QUY TẮC PHÂN RÃ:
 1. Chia nhỏ Task sao cho không quá 8 Story Points (SP).
-2. Phân loại rõ ràng: FE, BE, hoặc DB.
-3. Mỗi Task phải có mô tả kỹ thuật chi tiết dựa trên bối cảnh dự án.
+2. Phân loại rõ ràng: FE (Frontend), BE (Backend), DB (Database).
+3. Mỗi Task phải có mô tả kỹ thuật cụ thể (Dùng ngôn ngữ lập trình/Framework trong context nếu có).
 """
 
     if feedback:
-        system_content += f"\n\n## PHẢI GIẢI QUYẾT FEEDBACK TỪ RISK OBSERVER:\n{feedback}"
+        system_content += f"\n\n## FEEDBACK CẦN SỬA TỪ RISK OBSERVER:\n{feedback}"
 
     user_story_str = f"As a {user_story_obj.role}, I want to {user_story_obj.action} so that {user_story_obj.benefit}"
-    ac_str = "\n".join([f"- {ac}" for ac in user_story_obj.acceptance_criteria])
     
     messages = [
         SystemMessage(content=system_content),
-        HumanMessage(content=f"User Story: {user_story_str}\nAcceptance Criteria:\n{ac_str}")
+        HumanMessage(content=f"User Story: {user_story_str}\nAcceptance Criteria: {user_story_obj.acceptance_criteria}")
     ]
 
     return await structured_llm.ainvoke(messages)

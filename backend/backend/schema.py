@@ -1,11 +1,11 @@
-from typing import List, Optional
+from typing import List
 from pydantic import BaseModel, Field, field_validator
 
 class Task(BaseModel):
     title: str = Field(description="Tiêu đề ngắn gọn của task kỹ thuật")
     type: str = Field(description="Loại task: FE, BE, hoặc DB")
     description: str = Field(description="Mô tả chi tiết công việc cần làm")
-    story_point: int = Field(description="Độ khó từ 1, 2, 3, 5, 8")
+    story_point: int = Field(description="Độ khó từ 1, 2, 3, 5")
     priority: str = Field(description="Độ ưu tiên: High, Medium, hoặc Low")
     assignee_suggestion: str = Field(description="Gợi ý vai trò thực hiện")
 
@@ -23,12 +23,11 @@ class Task(BaseModel):
     def validate_type(cls, v):
         allowed = ['FE', 'BE', 'DB']
         if v.upper() not in allowed:
-            return "BE"
+            raise ValueError(f"type phải là FE, BE, hoặc DB. Nhận được: {v}")
         return v.upper()
 
-class RiskReport(BaseModel):
-    red_flags: List[str] = Field(description="Danh sách các rủi ro đỏ/nghiêm trọng")
-    recommendations: str = Field(description="Khuyến nghị để giảm thiểu rủi ro")
+class TaskList(BaseModel):
+    tasks: List[Task]
 
 class UserStory(BaseModel):
     title: str = Field(description="Tiêu đề ngắn gọn của User Story") 
@@ -37,12 +36,7 @@ class UserStory(BaseModel):
     benefit: str = Field(description="Lợi ích mang lại (So that...)")
     acceptance_criteria: List[str] = Field(description="Danh sách các tiêu chí nghiệm thu")
 
-class TaskListData(BaseModel):
-    story_details: UserStory 
-    tasks: List[Task]
-    risk_report: Optional[RiskReport] = None
-
-
+# ─── REQUEST SCHEMAS ──────────────────────────────────────────
 class CreateProjectRequest(BaseModel):
     name: str
 
@@ -53,9 +47,4 @@ class ChatRequest(BaseModel):
 
 class ConfirmStoryRequest(BaseModel):
     project_id: int
-    user_story: UserStory
-
-class UpdateArtifactRequest(BaseModel):
-    story_details: Optional[UserStory] = None
-    tasks: List[Task]
-    risk_report: Optional[RiskReport] = None
+    user_story: dict

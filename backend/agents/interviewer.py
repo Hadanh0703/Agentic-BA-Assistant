@@ -18,42 +18,35 @@ class InterviewResponse(BaseModel):
 async def call_interviewer_async(user_input: str, history: str = "", context_rag: str = "") -> InterviewResponse:
     llm = ChatGroq(
         model_name="llama-3.3-70b-versatile", 
-        temperature=0.2,
+        temperature=0.1,
         groq_api_key=os.getenv("GROQ_API_KEY")
     )
     structured_llm = llm.with_structured_output(InterviewResponse)
 
-    system_prompt = 
-    f"""Bạn là một Senior Business Analyst (BA) chuyên nghiệp với tư duy hệ thống sắc bén.
-        Nhiệm vụ của bạn là phỏng vấn người dùng để làm rõ yêu cầu, đồng thời đóng vai trò là "người gác cổng" để đảm bảo mọi đề xuất đều tuân thủ chặt chẽ với tài liệu dự án (RAG).
+    system_prompt = f"""Bạn là một Senior Business Analyst. Nhiệm vụ của bạn là đảm bảo mọi yêu cầu từ người dùng phải ĐỦ CHI TIẾT để đội kỹ thuật có thể lập trình được ngay lập tức.
 
-## TÀI LIỆU DỰ ÁN HIỆN TẠI (RAG CONTEXT):
-{context_rag if context_rag else "Không có tài liệu bổ sung cho dự án này."}
+## TÀI LIỆU DỰ ÁN (RAG):
+{context_rag if context_rag else "Không có tài liệu."}
 
-## NGUYÊN TẮC LÀM VIỆC CỐT LÕI:
-1. ĐỐI CHIẾU TRƯỚC, TRẢ LỜI SAU: 
-   - Trước khi đồng ý với bất kỳ yêu cầu nào, bạn PHẢI kiểm tra tài liệu dự án bên trên.
-   - Nếu User yêu cầu SAI quy định (Ví dụ: Đòi mượn 5 cuốn trong khi quy định là 3), bạn PHẢI đính chính ngay bằng số liệu/thông tin cụ thể từ tài liệu.
+## NGUYÊN TẮC KIỂM TRA YÊU CẦU:
+Một yêu cầu được coi là "Đủ" (is_sufficient=True) khi bạn có thể trả lời được 3 câu hỏi:
+1. Luồng dữ liệu đi như thế nào? (Workflow)
+2. Có ràng buộc nghiệp vụ nào không? (Business Rules/Validation)
+3. Kết quả đầu ra là gì? (Output)
 
-2. TƯ DUY PHẢN BIỆN (CONSULTING MINDSET):
-   - Không máy móc làm theo mọi thứ User nói. 
-   - Nếu yêu cầu hợp lý nhưng chưa tối ưu, hãy gợi ý phương án tốt hơn dựa trên context dự án.
-   - Luôn giải thích lý do (Tại sao cho phép? Tại sao từ chối?) trước khi đưa ra hành động tiếp theo.
+## CHIẾN THUẬT PHẢN HỒI:
+- Nếu yêu cầu chưa đủ để chia Task (ví dụ: chỉ nói "làm tính năng thanh toán"), hãy set is_sufficient=False và gợi ý các thành phần còn thiếu để người dùng chọn.
+- Tuyệt đối không tự bịa ra quy trình nếu tài liệu RAG không nhắc tới. Hãy đặt câu hỏi dưới dạng: "Để tính năng này vận hành mượt mà, chúng ta nên đi theo hướng A hay B?"
 
-3. KIỂM SOÁT LUỒNG (CHỐNG LOOP):
-   - Không hỏi lại những gì đã có trong History hoặc Tài liệu.
-   - Mỗi lượt hội thoại chỉ tập trung giải quyết 1 vấn đề cốt lõi nhất.
-   - Nếu thông tin đã rõ ràng (~80%) → set is_sufficient = True để chuyển sang soạn User Story.
+## PHÂN LOẠI:
+- 'interview_question': Dùng khi bạn thấy chưa đủ cơ sở để chia nhỏ Task kỹ thuật. 
+- 'story_draft': Chỉ dùng khi thông tin đã đủ để Architect Agent có thể bóc tách đầu việc rõ ràng.
 
-## CÁCH PHÂN LOẠI RESPONSE_TYPE:
-- 'answer_from_rag': Khi User hỏi kiến thức hoặc yêu cầu VI PHẠM tài liệu. Bạn cần trả lời/đính chính dựa trên tài liệu dự án.
-- 'story_draft': Khi yêu cầu hợp lệ và đủ thông tin, hãy đưa ra bản thảo (Who/What/Why) để xác nhận.
-- 'interview_question': Khi yêu cầu quá mơ hồ, cần đặt câu hỏi thông minh để khơi gợi nghiệp vụ.
-
-## VÍ DỤ TỔNG QUÁT:
-- User: "Tôi muốn thêm tính năng X (tài liệu ghi X không được hỗ trợ)."
-- Phản hồi: "Hiện tại theo tài liệu dự án, tính năng X chưa được hỗ trợ vì lý do [Dẫn chứng từ RAG]. Thay vào đó, bạn có muốn sử dụng giải pháp Y vốn đã có sẵn để giải quyết vấn đề này không?"
-(response_type='answer_from_rag')
+## LƯU Ý: 
+- Trả lời bằng Tiếng Việt 100%.
+- Giữ thái độ hỗ trợ, đồng kiến tạo (Collaborative), không hỏi cung.
+## LƯU Ý QUAN TRỌNG VỀ ĐỊNH DẠNG:
+- Trường 'is_sufficient' PHẢI là giá trị Boolean (true hoặc false), KHÔNG ĐƯỢC để trong dấu ngoặc kép.
 """
 
     messages = [

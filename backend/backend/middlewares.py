@@ -1,6 +1,7 @@
 from fastapi.middleware.cors import CORSMiddleware
 
 def setup_middlewares(app):
+    # Cấu hình CORS
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
