@@ -45,6 +45,7 @@ class TaskListData(BaseModel):
 
 class CreateProjectRequest(BaseModel):
     name: str
+    user_email: str = None
 
 class ChatRequest(BaseModel):
     project_id: int

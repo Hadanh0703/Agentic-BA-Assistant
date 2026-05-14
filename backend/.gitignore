@@ -12,3 +12,5 @@ sql_app.db
 
 # OS
 .DS_Store
+
+temp_data/

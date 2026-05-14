@@ -6,17 +6,18 @@ import os
 import asyncio
 from ingest_data import ingest_rag_file, delete_rag_file 
 
-
-def create_new_project(db: Session, name: str):
-    p = Project(name=name)
-    db.add(p)
+def create_new_project(db: Session, name: str, owner_id: int = None):
+    project = Project(name=name, owner_id=owner_id)  
+    db.add(project)
     db.commit()
-    db.refresh(p)
-    return p
+    db.refresh(project)
+    return {"id": project.id, "name": project.name, "created_at": project.created_at}
 
-def list_all_projects(db: Session):
-    return db.query(Project).order_by(Project.created_at.desc()).all()
-
+def list_all_projects(db: Session, owner_id: int = None):
+    query = db.query(Project).order_by(Project.created_at.desc())
+    if owner_id:
+        query = query.filter(Project.owner_id == owner_id)
+    return query.all()
 
 def get_project_or_404(project_id: int, db: Session) -> Project:
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -53,7 +54,6 @@ def get_artifacts(db: Session, project_id: int):
         .order_by(Artifact.created_at.asc())
         .all()
     )
-
 
 async def handle_ingest_logic(project_id: int, file, ingest_func, db: Session):
     if not file.filename or not file.filename.endswith(".pdf"):
@@ -102,7 +102,6 @@ async def delete_file_logic(project_id: int, file_name: str, db: Session):
         return f"Hệ thống đã quên kiến thức từ file '{file_name}'"
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi xóa file: {str(e)}")
-    
 
 def update_artifact_data(db: Session, artifact_id: int, new_data: dict):
     artifact = db.query(Artifact).filter(Artifact.id == artifact_id).first()
@@ -116,7 +115,6 @@ def update_artifact_data(db: Session, artifact_id: int, new_data: dict):
     db.refresh(artifact)
     return artifact
 
-
 def delete_artifact_logic(db: Session, project_id: int, artifact_id: int):
     artifact = db.query(models.Artifact).filter(
         models.Artifact.id == artifact_id, 
@@ -129,8 +127,6 @@ def delete_artifact_logic(db: Session, project_id: int, artifact_id: int):
     db.delete(artifact)
     db.commit()
     return True
-
-
 
 def save_message(db: Session, project_id: int, role: str, content: str, agent_name: str = None):
     msg = Message(project_id=project_id, role=role, content=content, agent_name=agent_name)
@@ -151,5 +147,3 @@ def save_artifact(db: Session, project_id: int, artifact_type: str, data, parent
     db.commit()
     db.refresh(artifact)
     return artifact
-
-
