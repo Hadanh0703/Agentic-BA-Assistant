@@ -3,11 +3,11 @@ from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings.fastembed import FastEmbedEmbeddings  
 
 load_dotenv()
 
-embeddings_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+embeddings_model = FastEmbedEmbeddings(model_name="BAAI/bge-small-en-v1.5")
 
 def get_vector_db(project_id: int):
     persist_dir = os.path.join("./db_storage", f"project_{project_id}")
@@ -19,8 +19,6 @@ def get_vector_db(project_id: int):
 def ingest_rag_file(file_path: str, project_id: int):
     if not os.path.exists(file_path):
         return
-
-    persist_dir = os.path.join("./db_storage", f"project_{project_id}")
 
     try:
         if file_path.endswith('.pdf'):
@@ -43,7 +41,6 @@ def ingest_rag_file(file_path: str, project_id: int):
         print(f"Lỗi khi cập nhật Vector DB: {e}")
 
 def delete_rag_file(file_name: str, project_id: int):
-    """Xóa các đoạn văn bản thuộc về file cụ thể trong Vector DB"""
     try:
         vector_db = get_vector_db(project_id)
         vector_db.delete(where={"source": file_name})
@@ -58,8 +55,7 @@ def query_rag(query: str, project_id: int):
             return ""
         vector_db = get_vector_db(project_id)
         results = vector_db.similarity_search(query, k=5)
-        context = "\n\n".join([doc.page_content for doc in results])
-        return context
+        return "\n\n".join([doc.page_content for doc in results])
     except Exception as e:
-        print(f" Lỗi khi truy vấn RAG: {e}")
+        print(f"Lỗi khi truy vấn RAG: {e}")
         return ""
