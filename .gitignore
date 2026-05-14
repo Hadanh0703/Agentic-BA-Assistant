@@ -12,3 +12,26 @@ sql_app.db
 
 # OS
 .DS_Store
+Thumbs.db
+
+# Node / Frontend
+node_modules/
+.next/
+frontend/.env.local
+frontend/.env*
+
+# Temp data
+temp_data/
+*.pdf
+
+# IDE
+.vscode/
+.idea/
+
+# Python build
+*.egg-info/
+dist/
+build/
+
+# Logs
+*.log
