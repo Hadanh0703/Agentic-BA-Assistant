@@ -43,7 +43,6 @@ export default function TaskWorkspace({
         0,
     );
 
-    // --- LOGIC EXPORT JIRA ---
     const handleExportJira = async (scope: "latest" | "all") => {
         if (!tasks || tasks.length === 0)
             return alert("Không có dữ liệu để export!");
@@ -60,30 +59,31 @@ export default function TaskWorkspace({
             const dataToExport =
                 scope === "latest" ? [sortedTasks[0]] : sortedTasks;
 
-            const response = await fetch(
-                "http://localhost:8000/api/jira/export",
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        stories: dataToExport.map((group) => ({
-                            story_details: group.story_details,
-                            tasks: group.items,
-                        })),
-                    }),
-                },
-            );
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+
+            const response = await fetch(`${baseUrl}/api/jira/export`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    stories: dataToExport.map((group) => ({
+                        story_details: group.story_details,
+                        tasks: group.items,
+                    })),
+                }),
+            });
 
             if (response.ok) {
                 alert(` Đồng bộ thành công lên Jira Cloud!`);
             } else {
                 const result = await response.json();
-                // ✅ Log chi tiết hơn để debug
                 console.error("Jira error detail:", result);
                 alert(` Lỗi: ${result.detail || JSON.stringify(result)}`);
             }
         } catch (error) {
-            alert(" Lỗi kết nối đến Backend!");
+            console.error("Export error:", error);
+            alert(
+                " Lỗi kết nối đến Backend Railway! Vui lòng kiểm tra server.",
+            );
         } finally {
             setIsExporting(false);
         }
@@ -116,7 +116,6 @@ export default function TaskWorkspace({
                 </div>
 
                 <div className="flex gap-3">
-                    {/* Export Story mới nhất */}
                     <button
                         onClick={() => handleExportJira("latest")}
                         disabled={isExporting}
@@ -125,7 +124,6 @@ export default function TaskWorkspace({
                         {isExporting ? "Processing..." : "Export Latest"}
                     </button>
 
-                    {/* Sync toàn bộ */}
                     <button
                         onClick={() => handleExportJira("all")}
                         disabled={isExporting}
