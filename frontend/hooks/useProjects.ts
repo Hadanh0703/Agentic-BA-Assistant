@@ -30,6 +30,10 @@ export function useProjects() {
     }, [email]);
 
     const createProject = async (name: string) => {
+        if (!email) {
+            console.error("Không tìm thấy email người dùng");
+            return;
+        }
         await projectsApi.create(name, email);
         await fetchProjects();
     };
