@@ -23,7 +23,6 @@ export default function ProjectPage({
         confirmStory,
         deleteStory,
         tasks,
-        riskReport,
         justFinishedConfirm,
         setJustFinishedConfirm,
     } = useChat(projectId);
@@ -56,7 +55,6 @@ export default function ProjectPage({
                         pendingStory={pendingStory}
                         onConfirm={confirmStory}
                         tasks={tasks}
-                        riskReport={riskReport}
                         onViewWorkspace={() => setActiveView("workspace")}
                     />
                 ) : (

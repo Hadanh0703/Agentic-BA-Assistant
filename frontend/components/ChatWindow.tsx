@@ -15,12 +15,14 @@ export default function ChatWindow({
     pendingStory,
     onConfirm,
     tasks,
-    riskReport,
     onViewWorkspace,
 }: any) {
     const { agentStatus } = useWebSocket(projectId);
     const [input, setInput] = useState("");
     const bottomRef = useRef<HTMLDivElement>(null);
+
+    const latestRiskReport =
+        tasks?.length > 0 ? tasks[tasks.length - 1]?.risk_report : null;
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -68,8 +70,7 @@ export default function ChatWindow({
                             <div className="whitespace-pre-wrap">
                                 {m.content}
                             </div>
-
-                            {m.content.includes(" Đã phân rã") && (
+                            {m.content.includes("Đã phân rã") && (
                                 <button
                                     onClick={onViewWorkspace}
                                     className="mt-3 w-full py-2 bg-indigo-500 hover:bg-indigo-400 text-white rounded-lg font-bold transition-all shadow-lg shadow-indigo-500/20"
@@ -93,7 +94,7 @@ export default function ChatWindow({
                         onConfirm={onConfirm}
                     />
                 )}
-                {riskReport && <RiskReport report={riskReport} />}
+                {latestRiskReport && <RiskReport report={latestRiskReport} />}
                 <div ref={bottomRef} />
             </div>
 
