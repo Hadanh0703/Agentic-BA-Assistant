@@ -6,10 +6,10 @@ def setup_middlewares(app):
         allow_origins=[
             "http://localhost:3000",
             "http://127.0.0.1:3000",
+            "https://agentic-ba-assistant-k3ih.vercel.app", 
         ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
         expose_headers=["*"],
     )
-    
