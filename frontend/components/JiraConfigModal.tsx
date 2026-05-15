@@ -61,9 +61,10 @@ export default function JiraConfigModal({ onSaved }: { onSaved: () => void }) {
             
               href="https://id.atlassian.com/manage-profile/security/api-tokens"
               target="_blank"
+              rel="noreferrer"
               className="text-indigo-400 text-xs hover:underline mt-1 block"
             >
-              Tạo API Token tại đây →
+              Tạo API Token tại đây
             </a>
           </div>
           <div>
