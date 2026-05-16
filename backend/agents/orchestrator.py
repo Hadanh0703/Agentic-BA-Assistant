@@ -27,7 +27,6 @@ async def classify_intent(user_input: str, history: str = "") -> str:
                    groq_api_key=os.getenv("GROQ_API_KEY"))
     structured_llm = llm.with_structured_output(IntentResult)
     messages = [
-        # HIỆU CHỈNH PROMPT: Thêm luật nhận diện câu trả lời làm rõ nghiệp vụ
         SystemMessage(content=(
             "Phân loại ý định người dùng thành ĐÚNG 1 trong 3 loại dựa trên ngữ cảnh hội thoại:\n\n"
             
@@ -144,13 +143,10 @@ async def run_ai_ba_workflow_async(
     clean_input = user_input.lower().strip().replace(".", "") if user_input else ""
     is_confirm = any(word in clean_input for word in confirms)
 
-    feature_keywords = ["tôi muốn", "tôi cần", "xây dựng", "làm tính năng", 
-                        "phát triển", "tạo tính năng", "implement", "thiết kế tính năng"]
-    is_feature_request = any(kw in clean_input for kw in feature_keywords)
-
-    if is_confirm or is_feature_request:
+    # ĐOẠN ĐÃ SỬA: Bỏ hoàn toàn mảng từ khóa feature_keywords thủ công gây ép sai luồng
+    if is_confirm:
         intent = "feature_request"
-        print(f"[debug] intent=feature_request (keyword match: is_confirm={is_confirm}, is_feature={is_feature_request})")
+        print(f"[debug] intent=feature_request (keyword match: is_confirm={is_confirm})")
     else:
         intent = await classify_intent(user_input, history)
         print(f"[debug] intent={intent} (LLM classified)")
@@ -160,7 +156,6 @@ async def run_ai_ba_workflow_async(
         await log("assistant", "Đang trả lời câu hỏi chung...")
         response = await handle_general_chat(user_input)
         return {"status": "general_response", "response": response}
-
 
     if intent == "rag_qa":
         await log("assistant", "Đang tra cứu tài liệu dự án...")

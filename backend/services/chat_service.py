@@ -37,6 +37,9 @@ async def handle_chat(project_id: int, user_input: str, history: str, db, emit):
     elif result["status"] == "awaiting_confirmation":
         story_data = result["user_story"].model_dump() if hasattr(result["user_story"], "model_dump") else result["user_story"]
         
+        # ── SỬA LỖI 1: Ép kiểu Object lồng về dict thuần trước khi return để FastAPI serialize được sang JSON ──
+        result["user_story"] = story_data
+        
         save_artifact(db, project_id, "user_story", story_data)     
         save_message(
             db, 
@@ -45,6 +48,15 @@ async def handle_chat(project_id: int, user_input: str, history: str, db, emit):
             "Tôi đã soạn xong User Story. Vui lòng kiểm tra, chỉnh sửa (nếu cần) và xác nhận trên bảng điều khiển!", 
             "Standardizer"
         )
+
+    # ── SỬA LỖI 2: Bắt trạng thái lỗi ngầm từ Agent để đẩy text lên giao diện thay vì im lặng hoàn toàn ──
+    elif result["status"] == "error":
+        error_msg = f"Hệ thống gặp lỗi tại [{result['step']}]: {result['detail']}"
+        save_message(db, project_id, "agent", error_msg, "System")
+        return {
+            "status": "general_response",
+            "response": error_msg
+        }
 
     return result
 
