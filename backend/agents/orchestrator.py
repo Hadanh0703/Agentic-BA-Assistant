@@ -60,7 +60,7 @@ async def handle_rag_qa(user_input: str, context: str) -> str:
             "QUY TẮC NGHIÊM NGẶT:\n"
             "1. Chỉ sử dụng thông tin có trong ngữ cảnh. Không tự ý suy đoán, không bịa đặt, không thêm thắt thông tin bên ngoài.\n"
             "2. Nếu ngữ cảnh không chứa đủ thông tin để trả lời, hãy phản hồi chính xác là: 'Tôi không tìm thấy thông tin này trong tài liệu dự án.'\n"
-            "3. Trả lời ngắn gọn, trực tiếp, tập trung vào câu hỏi bằng tiếng Việt."
+            "3. Trả lời ngắn gọn, trực tiếp, tập violent vào câu hỏi bằng tiếng Việt."
         )),
         HumanMessage(content=f"Ngữ cảnh tài liệu dự án:\n{context}\n\nCâu hỏi của người dùng: {user_input}")
     ]
@@ -158,12 +158,12 @@ async def run_ai_ba_workflow_async(
     context_rag = await asyncio.to_thread(query_rag, user_input, project_id)
     print(f"[debug] RAG done, length={len(context_rag) if context_rag else 0}")
 
-    is_question = any(word in user_input.lower() for word in ["?", "là gì", "như thế nào", "giải thích", "bao nhiêu", "không", "mấy", "quy định"])
-
-    if is_question and context_rag and len(context_rag) > 50:
-        print("[debug] Trả lời từ RAG context thông qua handle_rag_qa...")
-        response = await handle_rag_qa(user_input, context_rag)
-        return {"status": "general_response", "response": response}
+    if intent != "business":
+        is_question = any(word in user_input.lower() for word in ["?", "là gì", "như thế nào", "giải thích", "bao nhiêu", "không", "mấy", "quy định", "chính sách"])
+        if is_question and context_rag and len(context_rag) > 50:
+            print("[debug] Trả lời từ RAG context thông qua handle_rag_qa...")
+            response = await handle_rag_qa(user_input, context_rag)
+            return {"status": "general_response", "response": response}
 
     await log("interviewer", "Đang phân tích và làm rõ yêu cầu...")
     try:
