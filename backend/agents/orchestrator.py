@@ -17,8 +17,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# ── INTENT SCHEMA ─────────────────────────────────────────────
 class IntentResult(BaseModel):
-    intent: str = Field(description="'general' hoặc 'business'")
+    intent: str = Field(description="'general', 'rag_qa' hoặc 'feature_request'")
     reason: str = Field(description="Lý do phân loại ngắn gọn")
 
 async def classify_intent(user_input: str) -> str:
@@ -27,9 +28,24 @@ async def classify_intent(user_input: str) -> str:
     structured_llm = llm.with_structured_output(IntentResult)
     messages = [
         SystemMessage(content=(
-            "Phân loại ý định của người dùng thành 1 trong 2 loại:\n"
-            "- 'general': Chào hỏi, hỏi kiến thức chung.\n"
-            "- 'business': Yêu cầu tính năng, mô tả nghiệp vụ, phân tích hệ thống."
+            "Phân loại ý định người dùng thành ĐÚNG 1 trong 3 loại:\n\n"
+            
+            "- 'feature_request': Người dùng muốn XÂY DỰNG hoặc YÊU CẦU một tính năng mới.\n"
+            "  DẤU HIỆU: bắt đầu bằng 'tôi muốn', 'tôi cần', 'xây dựng', 'làm tính năng', 'phát triển'.\n"
+            "  LƯU Ý QUAN TRỌNG: Kể cả khi input có nhắc đến chính sách, quy định, business rules bên trong,\n"
+            "  nếu mục đích là ĐỀ XUẤT XÂY DỰNG thì vẫn là 'feature_request'.\n"
+            "  Ví dụ: 'Tôi muốn làm tính năng hủy đặt sân theo chính sách hoàn tiền' → feature_request\n\n"
+            
+            "- 'rag_qa': Người dùng đang HỎI hoặc TRA CỨU thông tin từ tài liệu.\n"
+            "  DẤU HIỆU: câu hỏi thuần túy, muốn biết thông tin, không có ý định xây dựng.\n"
+            "  Ví dụ: 'Chính sách hủy sân là gì?', 'Hạng Vàng có ưu đãi gì?' → rag_qa\n\n"
+            
+            "- 'general': Chào hỏi, hỏi kiến thức chung không liên quan tài liệu dự án.\n"
+            "  Ví dụ: 'Chào bạn', 'RAG là gì?' → general\n\n"
+            
+            "NGUYÊN TẮC QUYẾT ĐỊNH:\n"
+            "Nếu input có từ 'muốn', 'cần', 'xây dựng', 'tạo', 'làm' → LUÔN là 'feature_request'\n"
+            "dù có chứa từ khóa chính sách/quy định bên trong."
         )),
         HumanMessage(content=user_input)
     ]
@@ -40,29 +56,25 @@ async def handle_general_chat(user_input: str) -> str:
     llm = ChatGroq(model_name="llama-3.3-70b-versatile", temperature=0.5,
                    groq_api_key=os.getenv("GROQ_API_KEY"))
     messages = [
-        SystemMessage(content="Bạn là AI-BA Assistant thân thiện. Trả lời bằng tiếng Việt."),
+        SystemMessage(content="Bạn là AI-BA Assistant thân thiện. Trả lời ngắn gọn bằng tiếng Việt."),
         HumanMessage(content=user_input)
     ]
     response = await llm.ainvoke(messages)
     return response.content
 
 async def handle_rag_qa(user_input: str, context: str) -> str:
-    """
-    Hàm chuyên trách xử lý câu hỏi tra cứu tài liệu (RAG).
-    Đặt temperature = 0 và cấu hình System Prompt nghiêm ngặt để chống ảo tưởng thông tin.
-    """
+    """Chuyên trách xử lý câu hỏi tra cứu tài liệu — strict, không hallucinate."""
     llm = ChatGroq(model_name="llama-3.3-70b-versatile", temperature=0,
                    groq_api_key=os.getenv("GROQ_API_KEY"))
     messages = [
         SystemMessage(content=(
-            "Bạn là một trợ lý AI-BA chuyên nghiệp. Nhiệm vụ của bạn là trả lời câu hỏi của người dùng "
-            "DỰA TRÊN NGỮ CẢNH (CONTEXT) ĐƯỢC CUNG CẤP.\n"
-            "QUY TẮC NGHIÊM NGẶT:\n"
-            "1. Chỉ sử dụng thông tin có trong ngữ cảnh. Không tự ý suy đoán, không bịa đặt, không thêm thắt thông tin bên ngoài.\n"
-            "2. Nếu ngữ cảnh không chứa đủ thông tin để trả lời, hãy phản hồi chính xác là: 'Tôi không tìm thấy thông tin này trong tài liệu dự án.'\n"
-            "3. Trả lời ngắn gọn, trực tiếp, tập violent vào câu hỏi bằng tiếng Việt."
+            "Bạn là trợ lý AI-BA chuyên nghiệp. Trả lời câu hỏi DỰA TRÊN NGỮ CẢNH ĐƯỢC CUNG CẤP.\n"
+            "QUY TẮC:\n"
+            "1. Chỉ dùng thông tin trong ngữ cảnh. Không suy đoán, không bịa đặt.\n"
+            "2. Nếu không có thông tin → trả lời: 'Tôi không tìm thấy thông tin này trong tài liệu dự án.'\n"
+            "3. Trả lời ngắn gọn, trực tiếp bằng tiếng Việt."
         )),
-        HumanMessage(content=f"Ngữ cảnh tài liệu dự án:\n{context}\n\nCâu hỏi của người dùng: {user_input}")
+        HumanMessage(content=f"Ngữ cảnh:\n{context}\n\nCâu hỏi: {user_input}")
     ]
     response = await llm.ainvoke(messages)
     return response.content
@@ -94,7 +106,6 @@ async def run_ai_ba_workflow_async(
         try:
             tasks_obj = await call_architect_async(user_story_obj, project_id=project_id)
         except Exception as e:
-            print(f"[architect] LỖI: {repr(e)}")
             return {"status": "error", "step": "architect", "detail": str(e)}
 
         await log("risk_observer", "Đang kiểm tra rủi ro & chất lượng...")
@@ -105,19 +116,17 @@ async def run_ai_ba_workflow_async(
             try:
                 quality_report = await call_risk_observer_async(tasks_obj)
             except Exception as e:
-                print(f"[risk_observer] LỖI: {repr(e)}")
                 return {"status": "error", "step": "risk_observer", "detail": str(e)}
 
             final_quality_report = quality_report
 
             if quality_report.is_safe:
-                await log("risk_observer", f"✅ Đạt chuẩn an toàn (sau {attempt} lần kiểm tra).")
+                await log("risk_observer", f"✅ Đạt chuẩn (sau {attempt} lần kiểm tra).")
                 break
             else:
                 if attempt < max_retries:
                     flags = ", ".join(quality_report.red_flags)
                     await log("architect", f"⚠️ Lần {attempt + 1}: Phát hiện rủi ro → Đang sửa lại...")
-                    print(f"[architect] Lý do: {flags}")
                     try:
                         tasks_obj = await call_architect_async(
                             user_story_obj,
@@ -125,10 +134,9 @@ async def run_ai_ba_workflow_async(
                             feedback=quality_report.recommendations
                         )
                     except Exception as e:
-                        print(f"[architect_retry] LỖI: {repr(e)}")
                         return {"status": "error", "step": "architect_retry", "detail": str(e)}
                 else:
-                    await log("risk_observer", "⚠️ Đã đạt giới hạn retry. Kết thúc với cảnh báo.")
+                    await log("risk_observer", "⚠️ Đã đạt giới hạn retry.")
 
         return {
             "status": "success",
@@ -137,15 +145,20 @@ async def run_ai_ba_workflow_async(
             "risk_report": final_quality_report.model_dump()
         }
 
-    # ── MODE: INTENT CLASSIFICATION ──────────────────────────────
     confirms = ["đúng", "ok", "chuẩn", "xác nhận", "đồng ý", "chốt", "oke", "hợp lý"]
     clean_input = user_input.lower().strip().replace(".", "") if user_input else ""
     is_confirm = any(word in clean_input for word in confirms)
 
-    print(f"[debug] is_confirm={is_confirm}, input='{user_input[:40]}...'")
+    feature_keywords = ["tôi muốn", "tôi cần", "xây dựng", "làm tính năng", 
+                        "phát triển", "tạo tính năng", "implement", "thiết kế tính năng"]
+    is_feature_request = any(kw in clean_input for kw in feature_keywords)
 
-    intent = "business" if is_confirm else await classify_intent(user_input)
-    print(f"[debug] intent={intent}")
+    if is_confirm or is_feature_request:
+        intent = "feature_request"
+        print(f"[debug] intent=feature_request (keyword match: is_confirm={is_confirm}, is_feature={is_feature_request})")
+    else:
+        intent = await classify_intent(user_input)
+        print(f"[debug] intent={intent} (LLM classified)")
 
     # ── MODE: GENERAL CHAT ────────────────────────────────────────
     if intent == "general":
@@ -153,42 +166,39 @@ async def run_ai_ba_workflow_async(
         response = await handle_general_chat(user_input)
         return {"status": "general_response", "response": response}
 
-    # ── MODE: BUSINESS PIPELINE ───────────────────────────────────
-    print("[debug] Bắt đầu query RAG...")
-    context_rag = await asyncio.to_thread(query_rag, user_input, project_id)
-    print(f"[debug] RAG done, length={len(context_rag) if context_rag else 0}")
 
-    if intent != "business":
-        is_question = any(word in user_input.lower() for word in ["?", "là gì", "như thế nào", "giải thích", "bao nhiêu", "không", "mấy", "quy định", "chính sách"])
-        if is_question and context_rag and len(context_rag) > 50:
-            print("[debug] Trả lời từ RAG context thông qua handle_rag_qa...")
+    if intent == "rag_qa":
+        await log("assistant", "Đang tra cứu tài liệu dự án...")
+        context_rag = await asyncio.to_thread(query_rag, user_input, project_id)
+        if context_rag and len(context_rag) > 50:
             response = await handle_rag_qa(user_input, context_rag)
-            return {"status": "general_response", "response": response}
+        else:
+            response = "Tôi không tìm thấy thông tin này trong tài liệu dự án."
+        return {"status": "general_response", "response": response}
+
+    print("[debug] Bắt đầu query RAG cho feature pipeline...")
+    context_rag = await asyncio.to_thread(query_rag, user_input, project_id)
+    print(f"[debug] RAG context length={len(context_rag) if context_rag else 0}")
 
     await log("interviewer", "Đang phân tích và làm rõ yêu cầu...")
     try:
-        print("[debug] Bắt đầu gọi interviewer LLM...")
         interview_result = await call_interviewer_async(user_input, history, context_rag=context_rag)
-        print(f"[debug] interviewer xong: is_sufficient={interview_result.is_sufficient}")
-        print(f"[debug] response_type={interview_result.response_type}")
+        print(f"[debug] interviewer: is_sufficient={interview_result.is_sufficient}")
     except Exception as e:
-        print(f"[interviewer] LỖI: {repr(e)}")
         return {"status": "error", "step": "interviewer", "detail": str(e)}
 
     if not interview_result.is_sufficient:
-        print(f"[debug] Hỏi thêm: {interview_result.feedback[:60]}...")
         return {
-            "status": "general_response",
-            "response": interview_result.feedback
+            "status": "need_more_info",
+            "feedback": interview_result.feedback,
+            "response_type": interview_result.response_type
         }
 
     await log("standardizer", "Đang soạn thảo User Story chuẩn Agile...")
     try:
-        print("[debug] Bắt đầu gọi standardizer LLM...")
         user_story_obj = await call_standardizer_async(interview_result.clarified_requirement)
-        print(f"[debug] standardizer xong: action='{user_story_obj.action[:50]}'")
+        print(f"[debug] standardizer: action='{user_story_obj.action[:50]}'")
     except Exception as e:
-        print(f"[standardizer] LỖI: {repr(e)}")
         return {"status": "error", "step": "standardizer", "detail": str(e)}
 
     return {"status": "awaiting_confirmation", "user_story": user_story_obj}
