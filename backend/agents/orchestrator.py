@@ -22,32 +22,27 @@ class IntentResult(BaseModel):
     intent: str = Field(description="'general', 'rag_qa' hoặc 'feature_request'")
     reason: str = Field(description="Lý do phân loại ngắn gọn")
 
-async def classify_intent(user_input: str) -> str:
+async def classify_intent(user_input: str, history: str = "") -> str:
     llm = ChatGroq(model_name="llama-3.3-70b-versatile", temperature=0,
                    groq_api_key=os.getenv("GROQ_API_KEY"))
     structured_llm = llm.with_structured_output(IntentResult)
     messages = [
+        # HIỆU CHỈNH PROMPT: Thêm luật nhận diện câu trả lời làm rõ nghiệp vụ
         SystemMessage(content=(
-            "Phân loại ý định người dùng thành ĐÚNG 1 trong 3 loại:\n\n"
+            "Phân loại ý định người dùng thành ĐÚNG 1 trong 3 loại dựa trên ngữ cảnh hội thoại:\n\n"
             
-            "- 'feature_request': Người dùng muốn XÂY DỰNG hoặc YÊU CẦU một tính năng mới.\n"
-            "  DẤU HIỆU: bắt đầu bằng 'tôi muốn', 'tôi cần', 'xây dựng', 'làm tính năng', 'phát triển'.\n"
-            "  LƯU Ý QUAN TRỌNG: Kể cả khi input có nhắc đến chính sách, quy định, business rules bên trong,\n"
-            "  nếu mục đích là ĐỀ XUẤT XÂY DỰNG thì vẫn là 'feature_request'.\n"
-            "  Ví dụ: 'Tôi muốn làm tính năng hủy đặt sân theo chính sách hoàn tiền' → feature_request\n\n"
+            "- 'feature_request': Người dùng muốn XÂY DỰNG/YÊU CẦU tính năng mới HOẶC họ đang TRẢ LỜI, CUNG CẤP THÊM THÔNG TIN cho câu hỏi làm rõ nghiệp vụ trước đó của hệ thống.\n"
+            "  DẤU HIỆU: Bắt đầu bằng 'tôi muốn', 'tôi cần', 'xây dựng', 'làm tính năng', 'phát triển' HOẶC là nội dung bổ sung ngữ cảnh cho một tính năng đang bàn dở trong lịch sử chat.\n"
+            "  QUY TẮC QUAN TRỌNG: Kể cả khi input ngắn và không có từ khóa hành động, nếu trong lịch sử hệ thống đang hỏi làm rõ một tính năng và người dùng nhập câu trả lời cho câu hỏi đó, hãy LUÔN phân loại là 'feature_request'.\n\n"
             
-            "- 'rag_qa': Người dùng đang HỎI hoặc TRA CỨU thông tin từ tài liệu.\n"
-            "  DẤU HIỆU: câu hỏi thuần túy, muốn biết thông tin, không có ý định xây dựng.\n"
+            "- 'rag_qa': Người dùng đang HỎI hoặc TRA CỨU thông tin thuần túy từ tài liệu.\n"
+            "  DẤU HIỆU: Câu hỏi muốn biết thông tin quy định, không có ý định xây dựng hay trả lời làm rõ tính năng.\n"
             "  Ví dụ: 'Chính sách hủy sân là gì?', 'Hạng Vàng có ưu đãi gì?' → rag_qa\n\n"
             
-            "- 'general': Chào hỏi, hỏi kiến thức chung không liên quan tài liệu dự án.\n"
-            "  Ví dụ: 'Chào bạn', 'RAG là gì?' → general\n\n"
-            
-            "NGUYÊN TẮC QUYẾT ĐỊNH:\n"
-            "Nếu input có từ 'muốn', 'cần', 'xây dựng', 'tạo', 'làm' → LUÔN là 'feature_request'\n"
-            "dù có chứa từ khóa chính sách/quy định bên trong."
+            "- 'general': Chào hỏi, hỏi kiến thức chung không liên quan tài liệu dự án hoặc chuyển sang chủ đề xã giao khác.\n"
+            "  Ví dụ: 'Chào bạn', 'RAG là gì?' → general"
         )),
-        HumanMessage(content=user_input)
+        HumanMessage(content=f"Lịch sử chat trước đó:\n{history}\n\nCâu nhập mới nhất của người dùng: {user_input}")
     ]
     result = await structured_llm.ainvoke(messages)
     return result.intent
@@ -157,7 +152,7 @@ async def run_ai_ba_workflow_async(
         intent = "feature_request"
         print(f"[debug] intent=feature_request (keyword match: is_confirm={is_confirm}, is_feature={is_feature_request})")
     else:
-        intent = await classify_intent(user_input)
+        intent = await classify_intent(user_input, history)
         print(f"[debug] intent={intent} (LLM classified)")
 
     # ── MODE: GENERAL CHAT ────────────────────────────────────────
@@ -189,9 +184,8 @@ async def run_ai_ba_workflow_async(
 
     if not interview_result.is_sufficient:
         return {
-            "status": "need_more_info",
-            "feedback": interview_result.feedback,
-            "response_type": interview_result.response_type
+            "status": "general_response",
+            "response": interview_result.feedback
         }
 
     await log("standardizer", "Đang soạn thảo User Story chuẩn Agile...")

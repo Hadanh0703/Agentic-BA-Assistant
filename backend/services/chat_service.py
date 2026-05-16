@@ -2,23 +2,37 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from agents.orchestrator import run_ai_ba_workflow_async
-from services.project_service import save_message, save_artifact
+from services.project_service import save_message, save_artifact, get_messages
 
 async def handle_chat(project_id: int, user_input: str, history: str, db, emit):    
     save_message(db, project_id, "user", user_input)
+    
+    db_messages = get_messages(db, project_id)
+    
+    past_messages = db_messages[:-1] if len(db_messages) > 1 else []
+    
+    history_parts = []
+    for msg in past_messages[-10:]:
+        sender_type = getattr(msg, "sender_type", "user")
+        role = "Assistant" if sender_type == "agent" or getattr(msg, "role", "user") == "agent" else "User"
+        content = getattr(msg, "content", "")
+        history_parts.append(f"{role}: {content}")
+        
+    auto_history = "\n".join(history_parts)
+
     result = await run_ai_ba_workflow_async(
         user_input=user_input,
         project_id=project_id,
         db=db, 
-        history=history,
+        history=auto_history, 
         emit=emit
     )
 
-    if result["status"] == "need_more_info":
-        save_message(db, project_id, "agent", result["feedback"], "Interviewer")
+    if result["status"] == "general_response":
+        is_clarifying = any(word in result["response"].lower() for word in ["hỏi thêm", "làm rõ", "quy định", "chính sách", "liệu", "không?"])
+        sender_name = "Interviewer" if is_clarifying else "Assistant"
         
-    elif result["status"] == "general_response":
-        save_message(db, project_id, "agent", result["response"], "Assistant")
+        save_message(db, project_id, "agent", result["response"], sender_name)
         
     elif result["status"] == "awaiting_confirmation":
         story_data = result["user_story"].model_dump() if hasattr(result["user_story"], "model_dump") else result["user_story"]
