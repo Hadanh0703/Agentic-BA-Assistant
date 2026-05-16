@@ -46,6 +46,27 @@ async def handle_general_chat(user_input: str) -> str:
     response = await llm.ainvoke(messages)
     return response.content
 
+async def handle_rag_qa(user_input: str, context: str) -> str:
+    """
+    Hàm chuyên trách xử lý câu hỏi tra cứu tài liệu (RAG).
+    Đặt temperature = 0 và cấu hình System Prompt nghiêm ngặt để chống ảo tưởng thông tin.
+    """
+    llm = ChatGroq(model_name="llama-3.3-70b-versatile", temperature=0,
+                   groq_api_key=os.getenv("GROQ_API_KEY"))
+    messages = [
+        SystemMessage(content=(
+            "Bạn là một trợ lý AI-BA chuyên nghiệp. Nhiệm vụ của bạn là trả lời câu hỏi của người dùng "
+            "DỰA TRÊN NGỮ CẢNH (CONTEXT) ĐƯỢC CUNG CẤP.\n"
+            "QUY TẮC NGHIÊM NGẶT:\n"
+            "1. Chỉ sử dụng thông tin có trong ngữ cảnh. Không tự ý suy đoán, không bịa đặt, không thêm thắt thông tin bên ngoài.\n"
+            "2. Nếu ngữ cảnh không chứa đủ thông tin để trả lời, hãy phản hồi chính xác là: 'Tôi không tìm thấy thông tin này trong tài liệu dự án.'\n"
+            "3. Trả lời ngắn gọn, trực tiếp, tập trung vào câu hỏi bằng tiếng Việt."
+        )),
+        HumanMessage(content=f"Ngữ cảnh tài liệu dự án:\n{context}\n\nCâu hỏi của người dùng: {user_input}")
+    ]
+    response = await llm.ainvoke(messages)
+    return response.content
+
 async def run_ai_ba_workflow_async(
     user_input: Optional[str],
     project_id: int,
@@ -137,13 +158,14 @@ async def run_ai_ba_workflow_async(
     context_rag = await asyncio.to_thread(query_rag, user_input, project_id)
     print(f"[debug] RAG done, length={len(context_rag) if context_rag else 0}")
 
-    if "?" in user_input or any(word in user_input.lower() for word in ["là gì", "như thế nào", "giải thích"]):
-        if context_rag and len(context_rag) > 50:
-            print("[debug] Trả lời từ RAG context...")
-            response = await handle_general_chat(
-                f"Dựa trên tài liệu dự án:\n{context_rag}\n\nHãy trả lời: {user_input}"
-            )
-            return {"status": "general_response", "response": response}
+    # Mở rộng từ khóa nhận diện câu hỏi tra cứu thông tin để bắt trúng luồng RAG tốt hơn
+    is_question = any(word in user_input.lower() for word in ["?", "là gì", "như thế nào", "giải thích", "bao nhiêu", "không", "mấy", "quy định"])
+
+    if is_question and context_rag and len(context_rag) > 50:
+        print("[debug] Trả lời từ RAG context thông qua handle_rag_qa...")
+        # Đổi sang gọi hàm chuyên dụng với temperature=0 và prompt chặt chẽ
+        response = await handle_rag_qa(user_input, context_rag)
+        return {"status": "general_response", "response": response}
 
     await log("interviewer", "Đang phân tích và làm rõ yêu cầu...")
     try:
