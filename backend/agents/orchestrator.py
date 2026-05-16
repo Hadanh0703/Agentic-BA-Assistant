@@ -158,12 +158,10 @@ async def run_ai_ba_workflow_async(
     context_rag = await asyncio.to_thread(query_rag, user_input, project_id)
     print(f"[debug] RAG done, length={len(context_rag) if context_rag else 0}")
 
-    # Mở rộng từ khóa nhận diện câu hỏi tra cứu thông tin để bắt trúng luồng RAG tốt hơn
     is_question = any(word in user_input.lower() for word in ["?", "là gì", "như thế nào", "giải thích", "bao nhiêu", "không", "mấy", "quy định"])
 
     if is_question and context_rag and len(context_rag) > 50:
         print("[debug] Trả lời từ RAG context thông qua handle_rag_qa...")
-        # Đổi sang gọi hàm chuyên dụng với temperature=0 và prompt chặt chẽ
         response = await handle_rag_qa(user_input, context_rag)
         return {"status": "general_response", "response": response}
 
@@ -180,9 +178,8 @@ async def run_ai_ba_workflow_async(
     if not interview_result.is_sufficient:
         print(f"[debug] Hỏi thêm: {interview_result.feedback[:60]}...")
         return {
-            "status": "need_more_info",
-            "feedback": interview_result.feedback,
-            "response_type": interview_result.response_type
+            "status": "general_response",
+            "response": interview_result.feedback
         }
 
     await log("standardizer", "Đang soạn thảo User Story chuẩn Agile...")
