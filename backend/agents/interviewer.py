@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import BaseModel, Field
-from typing import Optional, Literal
+from typing import Optional, Literal, Union 
 
 load_dotenv()
 
@@ -11,7 +11,7 @@ class InterviewResponse(BaseModel):
     response_type: Literal["interview_question", "story_draft"] = Field(
         description="'interview_question' nếu cần hỏi thêm, 'story_draft' nếu đã đủ thông tin"
     )
-    is_sufficient: bool = Field(description="True nếu đã đủ Who/What/Why để chốt")
+    is_sufficient: Union[bool, str] = Field(description="True nếu đã đủ Who/What/Why để chốt, hoặc chuỗi 'True'/'False'")
     feedback: str = Field(description="Câu hỏi làm rõ HOẶC bản thảo User Story sơ bộ")
     clarified_requirement: Optional[str] = Field(
         description="Tóm tắt yêu cầu đầy đủ nếu is_sufficient=True. Bao gồm: Ai, Muốn gì, Để làm gì"
@@ -68,4 +68,9 @@ Input: "Tôi muốn làm tính năng hủy lịch đặt sân và hệ thống t
         HumanMessage(content=f"Lịch sử hội thoại:\n{history}\n\nYêu cầu hiện tại: {user_input}")
     ]
 
-    return await structured_llm.ainvoke(messages)
+    result = await structured_llm.ainvoke(messages)
+
+    if hasattr(result, "is_sufficient") and isinstance(result.is_sufficient, str):
+        result.is_sufficient = (result.is_sufficient.lower().strip() == "true")
+
+    return result
