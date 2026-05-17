@@ -29,12 +29,22 @@ export default function ProjectPage({
 
     const [activeView, setActiveView] = useState<"chat" | "workspace">("chat");
 
-    useEffect(() => {
-        if (justFinishedConfirm) {
+    // useEffect(() => {
+    //     if (justFinishedConfirm) {
+    //         setActiveView("workspace");
+    //         setJustFinishedConfirm(false);
+    //     }
+    // }, [justFinishedConfirm, setJustFinishedConfirm]);
+
+    const handleConfirmStorySafe = async (editedStory: any) => {
+        try {
+            await confirmStory(editedStory);
+
             setActiveView("workspace");
-            setJustFinishedConfirm(false);
+        } catch (error) {
+            console.error("Lỗi khi đợi phân rã task:", error);
         }
-    }, [justFinishedConfirm, setJustFinishedConfirm]);
+    };
 
     const handleBackToChat = () => {
         setJustFinishedConfirm(false);
@@ -53,7 +63,7 @@ export default function ProjectPage({
                         isLoading={isLoading}
                         isLoadingHistory={isLoadingHistory}
                         pendingStory={pendingStory}
-                        onConfirm={confirmStory}
+                        onConfirm={handleConfirmStorySafe}
                         tasks={tasks}
                         onViewWorkspace={() => setActiveView("workspace")}
                     />
