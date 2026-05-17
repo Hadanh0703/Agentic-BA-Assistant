@@ -39,6 +39,7 @@ export default function ChatWindow({
 
     return (
         <div className="flex flex-col h-screen bg-gray-950 text-white">
+            {/* Banner Workspace */}
             {tasks?.length > 0 && (
                 <div className="bg-indigo-950/40 border-b border-indigo-500/30 px-6 py-2 flex justify-between items-center animate-in fade-in duration-500">
                     <span className="text-xs text-indigo-300 font-large italic">
@@ -50,6 +51,12 @@ export default function ChatWindow({
                     >
                         Mở Workspace →
                     </button>
+                </div>
+            )}
+
+            {latestRiskReport && (
+                <div className="px-6 pt-3 pb-1 border-b border-gray-800/50">
+                    <RiskReport report={latestRiskReport} />
                 </div>
             )}
 
@@ -94,7 +101,6 @@ export default function ChatWindow({
                         onConfirm={onConfirm}
                     />
                 )}
-                {latestRiskReport && <RiskReport report={latestRiskReport} />}
                 <div ref={bottomRef} />
             </div>
 
