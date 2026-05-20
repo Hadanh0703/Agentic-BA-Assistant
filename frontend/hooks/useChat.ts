@@ -114,6 +114,7 @@ export function useChat(projectId: number) {
                         agent_name: "Assistant",
                     },
                 ]);
+                setHistory((h) => `${h}\nUser: ${input}\nAI: ${data.response}`);
             } else if (data.status === "awaiting_confirmation") {
                 setPendingStory(data.user_story);
                 setMessages((prev) => [

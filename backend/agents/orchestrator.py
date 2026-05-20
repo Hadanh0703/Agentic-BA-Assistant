@@ -46,17 +46,17 @@ async def classify_intent(user_input: str, history: str = "") -> str:
     result = await structured_llm.ainvoke(messages)
     return result.intent
 
-async def handle_general_chat(user_input: str) -> str:
+async def handle_general_chat(user_input: str, history: str = "") -> str:
     llm = ChatGroq(model_name="llama-3.3-70b-versatile", temperature=0.5,
                    groq_api_key=os.getenv("GROQ_API_KEY"))
     messages = [
         SystemMessage(content="Bạn là AI-BA Assistant thân thiện. Trả lời ngắn gọn bằng tiếng Việt."),
-        HumanMessage(content=user_input)
+        HumanMessage(content=f"Lịch sử hội thoại:\n{history}\n\nTin nhắn hiện tại: {user_input}" if history else user_input)
     ]
     response = await llm.ainvoke(messages)
     return response.content
 
-async def handle_rag_qa(user_input: str, context: str) -> str:
+async def handle_rag_qa(user_input: str, context: str, history: str = "") -> str:
     """Chuyên trách xử lý câu hỏi tra cứu tài liệu — strict, không hallucinate."""
     llm = ChatGroq(model_name="llama-3.3-70b-versatile", temperature=0,
                    groq_api_key=os.getenv("GROQ_API_KEY"))
@@ -68,7 +68,9 @@ async def handle_rag_qa(user_input: str, context: str) -> str:
             "2. Nếu không có thông tin → trả lời: 'Tôi không tìm thấy thông tin này trong tài liệu dự án.'\n"
             "3. Trả lời ngắn gọn, trực tiếp bằng tiếng Việt."
         )),
-        HumanMessage(content=f"Ngữ cảnh:\n{context}\n\nCâu hỏi: {user_input}")
+        HumanMessage(content=(
+        f"Lịch sử hội thoại:\n{history}\n\n" if history else ""
+    ) + f"Ngữ cảnh:\n{context}\n\nCâu hỏi: {user_input}")
     ]
     response = await llm.ainvoke(messages)
     return response.content
@@ -143,7 +145,6 @@ async def run_ai_ba_workflow_async(
     clean_input = user_input.lower().strip().replace(".", "") if user_input else ""
     is_confirm = any(word in clean_input for word in confirms)
 
-    # ĐOẠN ĐÃ SỬA: Bỏ hoàn toàn mảng từ khóa feature_keywords thủ công gây ép sai luồng
     if is_confirm:
         intent = "feature_request"
         print(f"[debug] intent=feature_request (keyword match: is_confirm={is_confirm})")
@@ -154,14 +155,14 @@ async def run_ai_ba_workflow_async(
     # ── MODE: GENERAL CHAT ────────────────────────────────────────
     if intent == "general":
         await log("assistant", "Đang trả lời câu hỏi chung...")
-        response = await handle_general_chat(user_input)
+        response = await handle_general_chat(user_input, history)
         return {"status": "general_response", "response": response}
 
     if intent == "rag_qa":
         await log("assistant", "Đang tra cứu tài liệu dự án...")
         context_rag = await asyncio.to_thread(query_rag, user_input, project_id)
         if context_rag and len(context_rag) > 50:
-            response = await handle_rag_qa(user_input, context_rag)
+            response = await handle_rag_qa(user_input, context_rag, history)
         else:
             response = "Tôi không tìm thấy thông tin này trong tài liệu dự án."
         return {"status": "general_response", "response": response}
