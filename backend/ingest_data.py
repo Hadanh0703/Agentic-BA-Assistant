@@ -7,7 +7,7 @@ from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 
 load_dotenv()
 
-embeddings_model = FastEmbedEmbeddings(model_name="BAAI/bge-m3")
+embeddings_model = FastEmbedEmbeddings(model_name="intfloat/multilingual-e5-large")
 
 def get_vector_db(project_id: int):
     persist_dir = os.path.join("./db_storage", f"project_{project_id}")
