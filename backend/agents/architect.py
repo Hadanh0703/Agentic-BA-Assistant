@@ -26,7 +26,6 @@ async def call_architect_async(user_story_obj, project_id: int, feedback: str = 
         rag_context = ""
         has_rag = False
 
-    #  Phần RAG instruction thay đổi tùy có/không có tài liệu
     rag_instruction = f"""
 ## TÀI LIỆU DỰ ÁN (BẮT BUỘC ĐỌC KỸ):
 {rag_context}
@@ -52,13 +51,15 @@ async def call_architect_async(user_story_obj, project_id: int, feedback: str = 
 2. Story Points: 1=30ph, 2=2h, 3=nửa ngày, 5=1 ngày, 8=2 ngày (KHÔNG quá 8)
 3. Phân loại: FE (giao diện), BE (logic/API), DB (database/migration)
 4. Phải có đủ 3 layer FE + BE + DB — thiếu layer nào phải giải thích lý do
-
-## VÍ DỤ DESCRIPTION TỐT (có RAG):
- "Xây dựng API xác thực người dùng"
- "Xây dựng API xác thực QR code động (refresh mỗi 30 giây) — tích hợp với cổng xoay điện tử, xử lý offline mode khi mất kết nối"
-
-## VÍ DỤ DESCRIPTION XẤU (không dùng RAG):
- "Tích hợp API xác thực để kiểm tra thông tin hội viên" ← quá chung chung
+5. KHÔNG tạo 2 task trùng chức năng — nếu tách phải khác nhau rõ ràng về scope:
+   Tốt: "Xây dựng API validate coupon" vs "Tích hợp coupon vào checkout + cập nhật đơn hàng"
+   Xấu: "Xây dựng API kiểm tra mã" vs "Tích hợp API kiểm tra mã" (trùng ý)
+6. DB task PHẢI liệt kê đủ tất cả bảng liên quan, bao gồm bảng tracking/history nếu có
+   nghiệp vụ kiểm tra trạng thái (đã dùng, đã thanh toán, lịch sử...)
+7. Priority theo nguyên tắc:
+   - High: blocking task khác, hoặc liên quan security/auth/payment/error handling critical
+   - Medium: core feature, không blocking
+   - Low: UI polish, redirect, thông báo thành công
 """
 
     if feedback:

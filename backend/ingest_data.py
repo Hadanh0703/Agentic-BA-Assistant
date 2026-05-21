@@ -7,7 +7,7 @@ from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 
 load_dotenv()
 
-embeddings_model = FastEmbedEmbeddings(model_name="BAAI/bge-small-en-v1.5")
+embeddings_model = FastEmbedEmbeddings(model_name="BAAI/bge-m3")
 
 def get_vector_db(project_id: int):
     persist_dir = os.path.join("./db_storage", f"project_{project_id}")
@@ -30,7 +30,11 @@ def ingest_rag_file(file_path: str, project_id: int):
         print(f"Lỗi khi đọc file: {e}")
         return
 
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=100)
+    text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1000,
+    chunk_overlap=200,  
+    separators=["\n\n", "\n", ".", " ", ""]
+)
     chunks = text_splitter.split_documents(documents)
 
     try:
@@ -54,8 +58,9 @@ def query_rag(query: str, project_id: int):
         if not os.path.exists(persist_dir):
             return ""
         vector_db = get_vector_db(project_id)
-        results = vector_db.similarity_search(query, k=5)
-        return "\n\n".join([doc.page_content for doc in results])
+        results = vector_db.similarity_search_with_relevance_scores(query, k=5)
+        filtered = [doc for doc, score in results if score > 0.5]
+        return "\n\n".join([doc.page_content for doc in filtered]) if filtered else ""
     except Exception as e:
         print(f"Lỗi khi truy vấn RAG: {e}")
         return ""
