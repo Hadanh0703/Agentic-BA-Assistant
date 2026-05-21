@@ -7,7 +7,7 @@ from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 
 load_dotenv()
 
-embeddings_model = FastEmbedEmbeddings(model_name="intfloat/multilingual-e5-large")
+embeddings_model = FastEmbedEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 
 def get_vector_db(project_id: int):
     persist_dir = os.path.join("./db_storage", f"project_{project_id}")
