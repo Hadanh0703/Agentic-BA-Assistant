@@ -58,9 +58,8 @@ def query_rag(query: str, project_id: int):
         if not os.path.exists(persist_dir):
             return ""
         vector_db = get_vector_db(project_id)
-        results = vector_db.similarity_search_with_relevance_scores(query, k=5)
-        filtered = [doc for doc, score in results if score > 0.5]
-        return "\n\n".join([doc.page_content for doc in filtered]) if filtered else ""
+        results = vector_db.similarity_search(query, k=3)  # k=3 đủ dùng
+        return "\n\n".join([doc.page_content for doc in results]) if results else ""
     except Exception as e:
         print(f"Lỗi khi truy vấn RAG: {e}")
         return ""
